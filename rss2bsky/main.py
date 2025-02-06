@@ -47,7 +47,7 @@ def truncate_text(description, link, limit):
         if splitter in description:
             description = description.split(splitter, 1)[1].strip()
 
-    link_text = "Read more on #fediverse"
+    link_text = "Read post"
     max_description_length = limit - len(link_text)
     if len(description) > max_description_length:
         description = description[:max_description_length]
@@ -136,7 +136,7 @@ def main():
             ):
                 print(f"Preparing {entry.link} {entry.published}")
                 # Truncate description to 300 characters
-                message = truncate_text(entry.description, entry.link, 300)
+                message = truncate_text(entry.title, entry.link, 300)
                 image = None
 
                 media_key = "media_content"  # Mastodon
