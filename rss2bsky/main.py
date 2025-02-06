@@ -158,10 +158,6 @@ def main():
                 # Save the last posted date
                 save_last_posted_date(entry.published)
 
-        # Wait for 30 seconds before the next check
-        client = None  # Force login next time
-        time.sleep(settings.INTERVAL)
-
 
 if __name__ == "__main__":
     main()
