@@ -100,7 +100,7 @@ def get_client():
 def main():
     # Read RSS feed URL and start date from environment variables
     feed_url = settings.FEED_URL
-    print(f"Fetching {feed_url} every {settings.INTERVAL} seconds...")
+    print(f"Fetching {feed_url}")
 
     start_post_date_str = settings.START_POST_DATE
     start_post_date = (
@@ -110,53 +110,58 @@ def main():
     )
 
     client = None  # Force stantiation when needed
-    while True:
-        # Fetch RSS feed
-        feed = feedparser.parse(feed_url)
 
-        # Read last posted date
-        last_posted_date_str = read_last_posted_date()
-        last_posted_date = (
-            datetime.strptime(last_posted_date_str, settings.DATE_FORMAT)
-            if last_posted_date_str
-            else None
-        )
+    # Fetch RSS feed
+    feed = feedparser.parse(feed_url)
 
-        # Process feed items in reverse order
-        for entry in reversed(feed.entries):
-            if (
-                skip_tag := settings.get("SKIP_TAG")
-            ) and skip_tag in entry.description:
-                continue
+    # Read last posted date
+    last_posted_date_str = read_last_posted_date()
+    last_posted_date = (
+        datetime.strptime(last_posted_date_str, settings.DATE_FORMAT)
+        if last_posted_date_str
+        else None
+    )
 
-            pub_date = datetime.strptime(entry.published, settings.DATE_FORMAT)
+    # Process feed items in reverse order
+    for entry in reversed(feed.entries):
+        if (
+            skip_tag := settings.get("SKIP_TAG")
+        ) and skip_tag in entry.description:
+            continue
 
-            if (not last_posted_date or pub_date > last_posted_date) and (
-                not start_post_date or pub_date > start_post_date
+        pub_date = datetime.strptime(entry.published, settings.DATE_FORMAT)
+
+        if (not last_posted_date or pub_date > last_posted_date) and (
+            not start_post_date or pub_date > start_post_date
+        ):
+            print(f"Preparing {entry.link} {entry.published}")
+            # Truncate description to 300 characters
+            message = truncate_text(entry.title, entry.link, 300)
+            image = None
+
+            media_key = "media_content"  # Mastodon
+            if "enclosures" in entry:
+                media_key = "enclosures"  # GoToSocial
+
+            # For now only the first image will repost.
+            if (media_content := entry.get(media_key)) and is_image(
+                media_content[0].get("url")
             ):
-                print(f"Preparing {entry.link} {entry.published}")
-                # Truncate description to 300 characters
-                message = truncate_text(entry.title, entry.link, 300)
-                image = None
+                url = media_content[0]["url"]
+                print(f"downloading image: {url}")
+                image = download_image(url)
 
-                media_key = "media_content"  # Mastodon
-                if "enclosures" in entry:
-                    media_key = "enclosures"  # GoToSocial
+            print("posting to bluesky")
+            client = client or get_client()
+            post_to_bluesky(client, message, image)
 
-                # For now only the first image will repost.
-                if (media_content := entry.get(media_key)) and is_image(
-                    media_content[0].get("url")
-                ):
-                    url = media_content[0]["url"]
-                    print(f"downloading image: {url}")
-                    image = download_image(url)
+            # Save the last posted date
+            save_last_posted_date(entry.published)
+            print("saved last posted date")
+        else:
+            print("this post is older than the last post date")
 
-                print("posting to bluesky")
-                client = client or get_client()
-                post_to_bluesky(client, message, image)
-
-                # Save the last posted date
-                save_last_posted_date(entry.published)
+    print("all done with work")
 
 
 if __name__ == "__main__":
