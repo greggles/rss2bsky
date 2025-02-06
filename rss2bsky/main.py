@@ -158,8 +158,6 @@ def main():
             # Save the last posted date
             save_last_posted_date(entry.published)
             print("saved last posted date")
-        else:
-            print("this post is older than the last post date")
 
     print("all done with work")
 
